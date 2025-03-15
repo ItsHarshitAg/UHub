@@ -125,10 +125,14 @@ def create_app(config_object=None):
                 except ProgrammingError:
                     # If alembic_version doesn't exist, initialize migrations
                     app.logger.info("Initializing Flask-Migrate...")
-                    from flask_migrate import init, migrate, stamp
-                    init()
-                    migrate()
-                    stamp()
+                    # Rename the imported functions to avoid name collision with the global migrate variable
+                    from flask_migrate import init as flask_migrate_init
+                    from flask_migrate import migrate as flask_migrate_migrate
+                    from flask_migrate import stamp as flask_migrate_stamp
+                    
+                    flask_migrate_init()
+                    flask_migrate_migrate()
+                    flask_migrate_stamp()
                     app.logger.info("Flask-Migrate initialized.")
             except Exception as e:
                 app.logger.error(f"Error during migration: {str(e)}")
