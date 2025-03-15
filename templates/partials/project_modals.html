@@ -1,0 +1,202 @@
+<!-- Project Member List (converted from modal to collapsible panel) -->
+<div class="card mb-4" id="membersPanelContainer" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Project Members</h5>
+        <button type="button" class="btn-close" onclick="toggleMembersPanel(false)"></button>
+    </div>
+    <div class="card-body">
+        <ul id="membersList" class="list-group">
+            <!-- Members will be dynamically populated here -->
+            <li class="list-group-item text-center">Select a project to view members</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Project actions: all converted to inline forms/sections instead of modals -->
+{% for project in projects %}
+    <!-- Edit Project Form - Hidden by default -->
+    <div id="editProjectSection{{ project.id }}" class="card my-3" style="display: none;">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Edit Project</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="hideProjectSection('editProjectSection{{ project.id }}')"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('projects.edit_project', project_id=project.id) }}" id="editForm{{ project.id }}" 
+                  class="edit-project-form" onsubmit="return prepareEditSkillsData('{{ project.id }}')">
+                <div class="mb-3">
+                    <label for="edit_project_name{{ project.id }}" class="form-label">Project Name</label>
+                    <input type="text" class="form-control" id="edit_project_name{{ project.id }}" name="project_name" value="{{ project.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit_project_description{{ project.id }}" class="form-label">Project Description</label>
+                    <textarea class="form-control" id="edit_project_description{{ project.id }}" name="project_description" rows="3" required>{{ project.description }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="edit_required_skills{{ project.id }}" class="form-label">Required Skills</label>
+                    <input type="text" class="form-control" id="edit_required_skills{{ project.id }}" name="required_skills_string" 
+                           value="{{ project.required_skills }}" placeholder="Enter skills separated by commas">
+                    <small class="text-muted">Enter skills separated by commas</small>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-secondary" onclick="hideProjectSection('editProjectSection{{ project.id }}')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Project Confirmation - Hidden by default -->
+    <div id="deleteProjectSection{{ project.id }}" class="card my-3" style="display: none;">
+        <div class="card-header bg-danger text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="hideProjectSection('deleteProjectSection{{ project.id }}')"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <p>Are you sure you want to delete project "{{ project.name }}"?</p>
+            <p class="text-danger"><strong>Warning:</strong> This action cannot be undone. All tasks, files, and related data will be permanently deleted.</p>
+            <div class="text-end">
+                <button type="button" class="btn btn-secondary" onclick="hideProjectSection('deleteProjectSection{{ project.id }}')">Cancel</button>
+                <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Project</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Project Confirmation - Hidden by default -->
+    <div id="joinProjectSection{{ project.id }}" class="card my-3" style="display: none;">
+        <div class="card-header bg-success text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Join Project</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="hideProjectSection('joinProjectSection{{ project.id }}')"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <h6>{{ project.name }}</h6>
+            <p>{{ project.description }}</p>
+            <div class="mb-3">
+                <strong>Required Skills:</strong>
+                <div class="skill-badges mt-2">
+                    {% for skill in project.required_skills.split(',') %}
+                        <span class="badge bg-light text-dark border me-1 mb-1">{{ skill.strip() }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <p class="mt-3">Are you sure you want to join this project?</p>
+            <div class="text-end">
+                <button type="button" class="btn btn-secondary" onclick="hideProjectSection('joinProjectSection{{ project.id }}')">Cancel</button>
+                <form method="POST" action="{{ url_for('projects.join_project', project_id=project.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success">Join Project</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Project Confirmation - Hidden by default -->
+    <div id="leaveProjectSection{{ project.id }}" class="card my-3" style="display: none;">
+        <div class="card-header bg-warning text-dark">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Leave Project</h5>
+                <button type="button" class="btn-close" onclick="hideProjectSection('leaveProjectSection{{ project.id }}')"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <p>Are you sure you want to leave "{{ project.name }}"?</p>
+            <p class="text-warning"><strong>Note:</strong> You will lose access to all project-related tasks and discussions.</p>
+            <div class="text-end">
+                <button type="button" class="btn btn-secondary" onclick="hideProjectSection('leaveProjectSection{{ project.id }}')">Cancel</button>
+                <form method="POST" action="{{ url_for('projects.quit_project', project_id=project.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-warning">Leave Project</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Members Section - Hidden by default -->
+    <div id="inviteSection{{ project.id }}" class="card my-3" style="display: none;">
+        <div class="card-header bg-info text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Invite Users to "{{ project.name }}"</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="hideProjectSection('inviteSection{{ project.id }}')"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="skillFilter{{ project.id }}" class="form-label">Filter by Skill</label>
+                <select class="form-select skill-filter" id="skillFilter{{ project.id }}" data-project-id="{{ project.id }}">
+                    <option value="">All Skills</option>
+                    {% for skill in project.required_skills.split(',') %}
+                        <option value="{{ skill.strip() }}">{{ skill.strip() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div id="userList{{ project.id }}" class="user-list mt-3">
+                <p class="text-muted">Select a skill to filter potential team members...</p>
+            </div>
+            
+            <div id="selectedUsersContainer{{ project.id }}" class="mt-4">
+                <h6>Selected Users</h6>
+                <div class="selected-users d-flex flex-wrap" id="selectedUsers{{ project.id }}"></div>
+            </div>
+            
+            <div class="mb-3 mt-4">
+                <label for="inviteMessage{{ project.id }}" class="form-label">Invitation Message</label>
+                <textarea class="form-control" id="inviteMessage{{ project.id }}" rows="2" placeholder="Optional message to include with your invitation..."></textarea>
+            </div>
+            
+            <div class="text-end">
+                <button type="button" class="btn btn-secondary" onclick="hideProjectSection('inviteSection{{ project.id }}')">Cancel</button>
+                <button type="button" class="btn btn-primary invite-btn" data-project-id="{{ project.id }}">
+                    <i class="bi bi-envelope me-1"></i> Send Invitations
+                </button>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+<!-- Add JavaScript to manage the sections -->
+<script>
+// Show a specific project section
+function showProjectSection(sectionId, projectId) {
+    // First hide any visible sections
+    document.querySelectorAll('[id^="editProjectSection"], [id^="deleteProjectSection"], [id^="joinProjectSection"], [id^="leaveProjectSection"], [id^="inviteSection"]')
+        .forEach(section => section.style.display = 'none');
+    
+    // Show the requested section
+    document.getElementById(sectionId).style.display = 'block';
+    
+    // Scroll to the section
+    document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // If it's a user list for invites, load the users
+    if (sectionId.startsWith('inviteSection')) {
+        const skillFilter = document.getElementById(`skillFilter${projectId}`);
+        if (skillFilter) {
+            fetchUsersBySkill(projectId, skillFilter.value);
+        }
+    }
+}
+
+// Hide a specific project section
+function hideProjectSection(sectionId) {
+    document.getElementById(sectionId).style.display = 'none';
+}
+
+// Toggle the members panel
+function toggleMembersPanel(show, projectId = null) {
+    const panel = document.getElementById('membersPanelContainer');
+    if (show) {
+        panel.style.display = 'block';
+        if (projectId) {
+            fetchProjectMembers(projectId);
+        }
+    } else {
+        panel.style.display = 'none';
+    }
+}
+</script>

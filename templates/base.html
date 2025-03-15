@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Add favicon link -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <title>{% block title %}USEHub{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+
+    <!-- Add inert polyfill for older browsers -->
+    <script>
+    // Simple inert polyfill
+    if (!HTMLElement.prototype.hasOwnProperty('inert')) {
+        Object.defineProperty(HTMLElement.prototype, 'inert', {
+            enumerable: true,
+            get: function() { return this.hasAttribute('inert'); },
+            set: function(value) {
+                if (value) {
+                    this.setAttribute('inert', '');
+                    // Make all children unfocusable
+                    Array.from(this.querySelectorAll('a, button, input, select, textarea, [tabindex]'))
+                        .forEach(el => {
+                            el.setAttribute('tabindex', '-1');
+                            el._previousTabIndex = el.getAttribute('tabindex');
+                        });
+                } else {
+                    this.removeAttribute('inert');
+                    // Restore focusability
+                    Array.from(this.querySelectorAll('[tabindex="-1"]'))
+                        .forEach(el => {
+                            if (el._previousTabIndex !== undefined) {
+                                if (el._previousTabIndex !== '-1') {
+                                    el.setAttribute('tabindex', el._previousTabIndex);
+                                } else {
+                                    el.removeAttribute('tabindex');
+                                }
+                                delete el._previousTabIndex;
+                            }
+                        });
+                }
+            }
+        });
+    }
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('user.user_dashboard') }}">
+                <i class="bi bi-box-seam me-2"></i>USEHub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if session.get('role') == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i> Admin Dashboard
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.user_dashboard') }}">
+                                <i class="bi bi-house-door me-1"></i> Dashboard
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.user_profile') }}">
+                            <i class="bi bi-person me-1"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout_user') }}">
+                            <i class="bi bi-box-arrow-right me-1"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+                <form class="d-flex me-2" action="{{ url_for('user.explore') }}" method="GET" id="searchForm">
+                    <input class="form-control" type="search" name="query" placeholder="Search for users..." aria-label="Search">
+                    <button class="btn btn-outline-success" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+                <div class="nav-item">
+                    <button class="btn btn-outline-info position-relative" data-bs-toggle="modal" data-bs-target="#notificationsModal">
+                        <i class="bi bi-bell"></i> Notifications
+                        <span class="notification-count" id="notificationBadge" style="display:none;">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="bg-dark text-white py-3">
+        <div class="container text-center">
+            <p>© 2024 USEHub. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <div class="modal fade" id="notificationsModal" tabindex="-1" aria-labelledby="notificationsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notificationsModalLabel">Notifications</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-sm btn-warning" onclick="clearAllNotifications()">Clear All</button>
+                    </div>
+                    <ul id="notificationsList" class="list-group">
+                        <!-- Notifications will be dynamically populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let notificationUpdateInterval;
+            loadNotifications();
+            notificationUpdateInterval = setInterval(loadNotifications, 30000);
+
+            const notificationsModal = document.getElementById('notificationsModal');
+            if (notificationsModal) {
+                notificationsModal.addEventListener('show.bs.modal', loadNotifications);
+            }
+
+            // Update notification badge
+            function updateNotificationBadge(count) {
+                const badge = document.getElementById('notificationBadge');
+                if (count > 0) {
+                    badge.textContent = count > 9 ? '9+' : count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            function loadNotifications() {
+                // Fix the API endpoint path - use proper URL instead of relative path
+                fetch('/user/get_notifications')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.json();
+                    })
+                    .then(data => {
+                        const notificationsList = document.getElementById("notificationsList");
+                        if (!notificationsList) return;
+
+                        notificationsList.innerHTML = "";
+
+                        if (Array.isArray(data) && data.length > 0) {
+                            data.forEach(notification => {
+                                const listItem = document.createElement("li");
+                                listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                                listItem.dataset.notificationId = notification.id;
+
+                                const content = document.createElement("div");
+                                content.className = "ms-2 me-auto";
+                                content.textContent = notification.message;
+
+                                const timestamp = document.createElement("small");
+                                timestamp.className = "text-muted";
+                                timestamp.textContent = new Date(notification.timestamp).toLocaleString();
+
+                                content.appendChild(document.createElement("br"));
+                                content.appendChild(timestamp);
+                                listItem.appendChild(content);
+
+                                // Handle friend request notifications
+                                if (notification.message.includes("friend request")) {
+                                    const buttonGroup = document.createElement("div");
+                                    buttonGroup.className = "btn-group ms-2";
+
+                                    const acceptBtn = document.createElement("button");
+                                    acceptBtn.className = "btn btn-sm btn-success";
+                                    acceptBtn.textContent = "Accept";
+                                    acceptBtn.onclick = () => handleFriendRequest(notification.id, 'accept');
+
+                                    const rejectBtn = document.createElement("button");
+                                    rejectBtn.className = "btn btn-sm btn-danger";
+                                    rejectBtn.textContent = "Reject";
+                                    rejectBtn.onclick = () => handleFriendRequest(notification.id, 'reject');
+
+                                    buttonGroup.appendChild(acceptBtn);
+                                    buttonGroup.appendChild(rejectBtn);
+                                    listItem.appendChild(buttonGroup);
+                                }
+
+                                notificationsList.appendChild(listItem);
+                            });
+                        } else {
+                            notificationsList.innerHTML = '<li class="list-group-item text-center">No new notifications</li>';
+                        }
+
+                        // Update the notification badge
+                        if (Array.isArray(data)) {
+                            updateNotificationBadge(data.length);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading notifications:', error);
+                        document.getElementById("notificationsList").innerHTML = `
+                            <li class="list-group-item text-danger">
+                                Error loading notifications. Please try again later.
+                            </li>`;
+                    });
+            }
+
+            // Add these functions to window scope to ensure they're accessible from the HTML
+            window.handleFriendRequest = function(notificationId, action) {
+                const endpoint = action === 'accept' ? '/user/accept_friend_request' : '/user/reject_friend_request';
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ notification_id: notificationId })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message) {
+                            alert(data.message);
+                            loadNotifications(); // Refresh notifications
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error ${action}ing friend request:`, error);
+                        alert(`Failed to ${action} friend request`);
+                    });
+            };
+
+            window.clearAllNotifications = function() {
+                if (confirm("Are you sure you want to clear all notifications?")) {
+                    fetch('/user/clear_notifications', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.message) {
+                                loadNotifications(); // Refresh after clearing
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error clearing notifications:', error);
+                            alert('Failed to clear notifications');
+                        });
+                }
+            };
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Explore Users{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Explore Users</h1>
+    
+    <form class="mb-4" method="GET" action="{{ url_for('user.explore') }}">
+        <div class="input-group">
+            <input type="text" class="form-control" name="query" placeholder="Search by name or skill..." value="{{ query }}">
+            <button class="btn btn-primary" type="submit">Search</button>
+        </div>
+    </form>
+
+    <div class="row">
+        {% for user in users %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <!-- Add profile picture -->
+                        <div class="mb-3 text-center">
+                            {% if user.profile_picture %}
+                                <img src="{{ url_for('static', filename='uploads/' + user.profile_picture) }}" 
+                                     alt="{{ user.name }}" class="rounded-circle" 
+                                     style="width: 100px; height: 100px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" 
+                                     style="width: 100px; height: 100px; font-size: 2.5rem;">
+                                    {{ user.name[0].upper() }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <h5 class="card-title text-center">{{ user.name }}</h5>
+                        <p class="card-text text-muted text-center">{{ user.role|capitalize }}</p>
+                        <!-- Display skills if available -->
+                        {% if user.skills %}
+                            <div class="mb-2 text-center">
+                                <small class="text-muted">Skills:</small>
+                                <div class="d-flex flex-wrap justify-content-center mt-1">
+                                    {% for skill in user.skills[:3] %}
+                                        <span class="badge bg-light text-dark border m-1">{{ skill.skill_name }}</span>
+                                    {% endfor %}
+                                    {% if user.skills|length > 3 %}
+                                        <span class="badge bg-light text-dark border m-1">+{{ user.skills|length - 3 }} more</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                        <a href="{{ url_for('user.view_profile', user_id=user.user_id) }}" class="btn btn-primary mt-auto">View Profile</a>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <p class="text-center">No users found matching your search.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Projects{% endblock %}
+
+{% block head %}
+{{ super() }}
+<!-- Add jQuery and Select2 with specific versions -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- Add project-specific CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects.css') }}">
+
+<style>
+    /* Additional styles to ensure proper Select2 display */
+    .select2-container {
+        width: 100% !important;
+        z-index: 1050;
+    }
+    
+    .select2-selection--multiple {
+        overflow: hidden;
+        min-height: 38px !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="text-center mb-4">Manage Projects</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+
+    <!-- Create New Project Card -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="card-title mb-0"><i class="bi bi-plus-circle me-2"></i> Create a New Project</h5>
+        </div>
+        <div class="card-body">
+            <form id="newProjectForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="project_name" class="form-label">Project Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="project_name" name="project_name" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="required_skills_input" class="form-label">Required Skills <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="required_skills_input" name="required_skills_string" 
+                               placeholder="Enter skills separated by commas" required>
+                        <small class="text-muted">Example: Python, JavaScript, Docker</small>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="project_description" class="form-label">Project Description <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="project_description" name="project_description" rows="3" required></textarea>
+                </div>
+                <div id="form-feedback" class="alert d-none mb-3"></div>
+                <button type="submit" id="submit-project-btn" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm d-none me-2" id="submit-spinner" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-save me-1"></i> Create Project
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Projects Filter and Search Card -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-filter me-2"></i> Projects Gallery</h5>
+                <div class="input-group input-group-sm" style="width: 300px;">
+                    <input type="text" class="form-control" placeholder="Search projects..." id="projectSearchInput">
+                    <button class="btn btn-outline-secondary" type="button" id="projectSearchBtn">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body pb-0">
+            <div class="btn-group mb-3" role="group">
+                <button type="button" class="btn btn-outline-primary project-filter-btn active" data-filter="all">All Projects</button>
+                <button type="button" class="btn btn-outline-primary project-filter-btn" data-filter="my">My Projects</button>
+                <button type="button" class="btn btn-outline-primary project-filter-btn" data-filter="joined">Joined Projects</button>
+                <button type="button" class="btn btn-outline-primary project-filter-btn" data-filter="available">Available to Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects List -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 project-cards-container" id="projectsContainer">
+        {% if projects %}
+            {% for project in projects %}
+                <div class="col project-card" 
+                     data-project-name="{{ project.name | lower }}"
+                     data-project-type="{{ 'my' if project.created_by == session['user_id'] else ('joined' if user_projects[project.id] else 'available') }}">
+                    <div class="card h-100 shadow-sm hover-card">
+                        <!-- Project Card Header -->
+                        <div class="card-header py-3 d-flex justify-content-between align-items-center 
+                                    {% if project.created_by == session['user_id'] %}bg-primary text-white{% else %}bg-light{% endif %}">
+                            <h6 class="mb-0 text-truncate" title="{{ project.name }}">
+                                <a href="{{ url_for('projects.project_dashboard', project_id=project.id) }}" class="project-link {% if project.created_by == session['user_id'] %}text-white{% endif %}">
+                                    {{ project.name }}
+                                </a>
+                            </h6>
+                            {% if project.created_by == session['user_id'] %}
+                                <span class="badge rounded-pill bg-light text-primary">Creator</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Project Card Body -->
+                        <div class="card-body">
+                            <p class="card-text" style="height: 60px; overflow: hidden;">
+                                {{ project.description }}
+                            </p>
+                            
+                            <!-- Skills badges -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block mb-1">Required Skills:</small>
+                                <div class="skill-badges">
+                                    {% set skills_list = project.required_skills.split(',') %}
+                                    {% for skill in skills_list[:3] %}
+                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ skill.strip() }}</span>
+                                    {% endfor %}
+                                    {% if skills_list|length > 3 %}
+                                        <span class="badge bg-light text-dark border me-1 mb-1">+{{ skills_list|length - 3 }} more</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Status indicator -->
+                            <div class="mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="status-indicator 
+                                        {% if user_projects[project.id] %}bg-success{% else %}bg-secondary{% endif %}">
+                                    </span>
+                                    <span class="ms-2 small">
+                                        {% if user_projects[project.id] %}
+                                            You are a member
+                                        {% else %}
+                                            Not joined
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Project Card Footer -->
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between">
+                                <!-- Admin/creator buttons -->
+                                {% if project.created_by == session['user_id'] %}
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('projects.project_dashboard', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-kanban me-1"></i> Dashboard
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                            <span class="visually-hidden">Toggle Dropdown</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item project-action-btn" href="#" data-action="edit" data-project-id="{{ project.id }}">
+                                                    <i class="bi bi-pencil me-2"></i> Edit Project
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item project-action-btn" href="#" data-action="invite" data-project-id="{{ project.id }}">
+                                                    <i class="bi bi-person-plus me-2"></i> Invite Members
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger project-action-btn" href="#" data-action="delete" data-project-id="{{ project.id }}">
+                                                    <i class="bi bi-trash me-2"></i> Delete Project
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                {% elif user_projects[project.id] %}
+                                    <a href="{{ url_for('projects.project_dashboard', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-kanban me-1"></i> Dashboard
+                                    </a>
+                                {% else %}
+                                    <div></div> <!-- Empty div for flex spacing -->
+                                {% endif %}
+                                
+                                <!-- Join/Leave buttons -->
+                                {% if user_projects[project.id] and project.created_by != session['user_id'] %}
+                                    <button class="btn btn-sm btn-outline-danger project-action-btn" data-action="leave" data-project-id="{{ project.id }}">
+                                        <i class="bi bi-box-arrow-left me-1"></i> Leave
+                                    </button>
+                                {% elif project.created_by != session['user_id'] %}
+                                    <button class="btn btn-sm btn-outline-success project-action-btn" data-action="join" data-project-id="{{ project.id }}">
+                                        <i class="bi bi-plus-circle me-1"></i> Join
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="no-projects-placeholder">
+                    <i class="bi bi-kanban"></i>
+                    <h4>No Projects Available</h4>
+                    <p class="text-muted">Create your first project to get started!</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modals Section -->
+<div id="projectActionSections">
+    <!-- The project action sections (edit, delete, etc.) will be included here -->
+    {% include 'partials/project_modals.html' %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add project-specific JavaScript -->
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+
+<script>
+    // Additional code to ensure Select2 initializes properly
+    document.addEventListener('DOMContentLoaded', function() {
+        // Double check select2 initialization after DOM is fully loaded
+        setTimeout(function() {
+            if ($('.required-skills-select').length && typeof $.fn.select2 !== 'undefined') {
+                if (!$('.required-skills-select').data('select2')) {
+                    initializeSelect2($('.required-skills-select'));
+                    console.log('Re-initialized Select2 for skills select');
+                }
+            } else {
+                console.error('Select2 not properly initialized');
+            }
+        }, 500);
+    });
+</script>
+{% endblock %}

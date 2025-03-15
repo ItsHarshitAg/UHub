@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with {{ friend.name }}</title>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .chat-wrapper {
+            max-width: 900px;
+            margin: 30px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .chat-header {
+            background-color: #075e54;
+            color: #fff;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2em;
+            position: relative;
+        }
+        .chat-header a {
+            color: #fff;
+            text-decoration: none;
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.9em;
+        }
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #ece5dd;
+        }
+        .message {
+            margin: 15px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 70%;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .sent {
+            background-color: #dcf8c6;
+            margin-left: auto;
+            text-align: right;
+        }
+        .received {
+            background-color: #fff;
+            margin-right: auto;
+            text-align: left;
+        }
+        .message strong {
+            font-size: 0.9em;
+            color: #333;
+        }
+        .message small {
+            font-size: 0.7em;
+            color: #777;
+            display: block;
+            margin-top: 5px;
+        }
+        .input-container {
+            padding: 20px;
+            background: #fff;
+            border-top: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-container textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: none;
+            font-size: 1em;
+            outline: none;
+        }
+        .input-container button {
+            padding: 10px 20px;
+            background-color: #075e54;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .input-container button:hover {
+            background-color: #054d44;
+        }
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-wrapper">
+        <div class="chat-header">
+            <a href="{{ url_for('chat.chat_list') }}">Back</a>
+            Chat with {{ friend.name }}
+        </div>
+        <div class="chat-container" id="chat-box">
+            {% for message in messages %}
+                <div class="message {{ 'sent' if message.sender_id == current_user.user_id else 'received' }}">
+                    <strong>{{ message.sender.name }}:</strong> {{ message.content }}
+                    <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="input-container">
+            <textarea id="message-input" rows="2" placeholder="Type your message..."></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const friendId = "{{ friend.user_id }}";
+        const currentUserId = "{{ current_user.user_id }}";
+
+        // For debugging - log the user IDs
+        console.log("Current User ID:", currentUserId);
+        console.log("Friend ID:", friendId);
+
+        function sendMessage() {
+            const content = document.getElementById('message-input').value.trim();
+            if (!content) return;
+
+            fetch('/send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiver_id: friendId, content: content })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const chatBox = document.getElementById('chat-box');
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message sent';
+                    messageDiv.innerHTML = `<strong>You:</strong> ${data.data.content} <small>(${new Date(data.data.timestamp).toLocaleString()})</small>`;
+                    chatBox.appendChild(messageDiv);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                    document.getElementById('message-input').value = '';
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function fetchMessages() {
+            fetch(`/get_messages/${friendId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const chatBox = document.getElementById('chat-box');
+                        chatBox.innerHTML = '';
+                        data.messages.forEach(msg => {
+                            // Convert IDs to strings for reliable comparison
+                            const senderIdStr = String(msg.sender_id);
+                            const currentUserIdStr = String(currentUserId);
+                            
+                            // Log for debugging
+                            console.log(`Message from ${senderIdStr}, Current user: ${currentUserIdStr}, Match: ${senderIdStr === currentUserIdStr}`);
+                            
+                            const isSentByCurrentUser = senderIdStr === currentUserIdStr;
+                            
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${isSentByCurrentUser ? 'sent' : 'received'}`;
+                            messageDiv.innerHTML = `<strong>${isSentByCurrentUser ? 'You' : '{{ friend.name }}'}:</strong> ${msg.content} <small>(${new Date(msg.timestamp).toLocaleString()})</small>`;
+                            chatBox.appendChild(messageDiv);
+                        });
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        setInterval(fetchMessages, 5000);
+        fetchMessages();
+    </script>
+</body>
+</html>

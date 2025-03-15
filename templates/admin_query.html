@@ -1,0 +1,521 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Database Console{% endblock %}
+
+{% block head %}
+{{ super() }}
+<!-- CodeMirror for SQL syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/monokai.min.css">
+<style>
+    /* ...existing code... */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="text-center">Admin Database Console</h2>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Execute SQL queries to interact directly with the database. Use with caution.
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Tables and Schema -->
+        <div class="col-md-4">
+            <!-- Database Tables Card -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Database Tables</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group" id="tableList">
+                        <!-- Tables will be populated here -->
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Schema Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Table Schema</h5>
+                </div>
+                <div class="card-body table-info" id="tableSchema">
+                    <p class="text-muted">Select a table to view its schema.</p>
+                </div>
+            </div>
+
+            <!-- Query Templates Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-code"></i> Query Templates</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action query-template" data-query="SELECT * FROM users LIMIT 10;">List Users</a>
+                        <a href="#" class="list-group-item list-group-item-action query-template" data-query="SELECT * FROM projects LIMIT 10;">List Projects</a>
+                        <a href="#" class="list-group-item list-group-item-action query-template" data-query="SELECT * FROM skills LIMIT 10;">List Skills</a>
+                        <a href="#" class="list-group-item list-group-item-action query-template" data-query="SELECT * FROM audit ORDER BY timestamp DESC LIMIT 20;">Recent Audit Logs</a>                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Query Editor and Results -->
+        <div class="col-md-8">
+            <!-- Query Editor Card -->
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-code-square"></i> SQL Query Editor</h5>
+                </div>
+                <div class="card-body">
+                    <form id="queryForm">
+                        <div class="mb-3">
+                            <textarea id="queryEditor" class="form-control" placeholder="Enter your SQL query here..."></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-play-fill"></i> Execute
+                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary" id="clearButton">
+                                    <i class="bi bi-trash"></i> Clear
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" id="resetHistoryBtn">
+                                    <i class="bi bi-x-circle"></i> Reset History
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Query History Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Query History</h5>
+                </div>
+                <div class="card-body query-history">
+                    <ul class="list-group" id="queryHistory">
+                        <li class="list-group-item text-center text-muted">No history yet</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Query Results Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-table"></i> Query Results</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-light" id="exportCsv" title="Export to CSV" disabled>
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="queryMessage" class="alert alert-info">
+                        Execute a query to see results
+                    </div>
+                    <div class="loader" id="loadingIndicator"></div>
+                    <div class="results-container">
+                        <div id="resultsOutput">
+                            <!-- Results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Load scripts with absolute URLs to avoid connection errors -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if required libraries are loaded
+        if (typeof CodeMirror === 'undefined') {
+            console.error('CodeMirror is not loaded');
+            document.getElementById('queryForm').innerHTML = '<div class="alert alert-danger">CodeMirror library failed to load. Please refresh the page or check your internet connection.</div>';
+            return;
+        }
+        
+        if (typeof saveAs === 'undefined') {
+            console.warn('FileSaver.js is not loaded. Export functionality will not work.');
+        }
+        
+        // Initialize CodeMirror
+        const queryEditor = CodeMirror.fromTextArea(document.getElementById('queryEditor'), {
+            mode: 'text/x-sql',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentWithTabs: true,
+            smartIndent: true,
+            lineWrapping: true,
+            matchBrackets: true,
+            autofocus: true
+        });
+
+        // Load query history from localStorage
+        function loadQueryHistory() {
+            const history = JSON.parse(localStorage.getItem('adminQueryHistory') || '[]');
+            const historyList = document.getElementById('queryHistory');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<li class="list-group-item text-center text-muted">No history yet</li>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            history.slice(0, 10).forEach((query, index) => {
+                const item = document.createElement('li');
+                item.className = 'list-group-item history-item';
+                item.textContent = query.length > 50 ? query.substring(0, 50) + '...' : query;
+                item.title = query;
+                item.addEventListener('click', () => {
+                    queryEditor.setValue(query);
+                    queryEditor.focus();
+                });
+                historyList.appendChild(item);
+            });
+        }
+
+        // Add query to history
+        function addToHistory(query) {
+            if (!query.trim()) return;
+            
+            let history = JSON.parse(localStorage.getItem('adminQueryHistory') || '[]');
+            // Remove duplicates
+            history = history.filter(item => item !== query);
+            // Add to beginning
+            history.unshift(query);
+            // Limit to 20 entries
+            history = history.slice(0, 20);
+            localStorage.setItem('adminQueryHistory', JSON.stringify(history));
+            loadQueryHistory();
+        }
+
+        // Reset query history
+        document.getElementById('resetHistoryBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear your query history?')) {
+                localStorage.removeItem('adminQueryHistory');
+                loadQueryHistory();
+            }
+        });
+
+        // Clear button
+        document.getElementById('clearButton').addEventListener('click', function() {
+            queryEditor.setValue('');
+            queryEditor.focus();
+        });
+
+        // Update fetch to use absolute URLs and better error handling
+        fetch('/admin/get_tables')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const tableList = document.getElementById("tableList");
+                tableList.innerHTML = '';
+                
+                if (data.tables) {
+                    data.tables.forEach(table => {
+                        const item = document.createElement("a");
+                        item.href = "#";
+                        item.className = "list-group-item list-group-item-action";
+                        item.textContent = table;
+                        
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            // Fetch and display table schema
+                            fetchTableSchema(table);
+                            
+                            // Set a basic SELECT query for the table
+                            const query = `SELECT * FROM ${table} LIMIT 10;`;
+                            queryEditor.setValue(query);
+                        });
+                        
+                        tableList.appendChild(item);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching tables:", error);
+                document.getElementById("tableList").innerHTML = 
+                    `<div class="alert alert-danger">Error loading tables: ${error.message}</div>`;
+            });
+
+        // Fetch table schema with improved error handling
+        function fetchTableSchema(tableName) {
+            const schemaContainer = document.getElementById('tableSchema');
+            schemaContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm text-primary"></div><p>Loading schema...</p></div>';
+            
+            const query = `PRAGMA table_info(${tableName});`;
+            
+            fetch('/admin/admin_query', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({ 'query': query })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    schemaContainer.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+                
+                const table = document.createElement('table');
+                table.className = 'table table-sm table-striped';
+                
+                // Create header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                ['Name', 'Type', 'PK', 'NN', 'Default'].forEach(col => {
+                    const th = document.createElement('th');
+                    th.textContent = col;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Create body
+                const tbody = document.createElement('tbody');
+                data.forEach(column => {
+                    const tr = document.createElement('tr');
+                    
+                    // Name
+                    const nameTd = document.createElement('td');
+                    nameTd.textContent = column.name;
+                    if (column.pk === 1) {
+                        nameTd.innerHTML += ' <span class="badge bg-primary">PK</span>';
+                    }
+                    tr.appendChild(nameTd);
+                    
+                    // Type
+                    const typeTd = document.createElement('td');
+                    typeTd.textContent = column.type;
+                    tr.appendChild(typeTd);
+                    
+                    // PK
+                    const pkTd = document.createElement('td');
+                    pkTd.textContent = column.pk === 1 ? '✓' : '';
+                    tr.appendChild(pkTd);
+                    
+                    // Not Null
+                    const nnTd = document.createElement('td');
+                    nnTd.textContent = column.notnull === 1 ? '✓' : '';
+                    tr.appendChild(nnTd);
+                    
+                    // Default
+                    const defTd = document.createElement('td');
+                    defTd.textContent = column.dflt_value || '';
+                    tr.appendChild(defTd);
+                    
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                
+                schemaContainer.innerHTML = '';
+                schemaContainer.appendChild(table);
+            })
+            .catch(error => {
+                console.error("Error fetching schema:", error);
+                schemaContainer.innerHTML = `<div class="alert alert-danger">Error loading schema: ${error.message}</div>`;
+            });
+        }
+
+        // Handle query template clicks
+        document.querySelectorAll('.query-template').forEach(template => {
+            template.addEventListener('click', function(e) {
+                e.preventDefault();
+                const query = this.getAttribute('data-query');
+                queryEditor.setValue(query);
+                queryEditor.focus();
+            });
+        });
+        
+        // Execute query with improved error handling
+        document.getElementById('queryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const query = queryEditor.getValue().trim();
+            if (!query) {
+                document.getElementById('queryMessage').textContent = "Please enter a query";
+                document.getElementById('queryMessage').className = "alert alert-warning";
+                document.getElementById('queryMessage').style.display = 'block';
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('queryMessage').style.display = 'none';
+            document.getElementById('resultsOutput').innerHTML = '';
+            document.getElementById('exportCsv').disabled = true;
+            
+            // Save to history
+            addToHistory(query);
+            
+            fetch('/admin/admin_query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    'query': query
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading indicator
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+                // Check if there was an error or results
+                if (data.error) {
+                    document.getElementById('queryMessage').textContent = `Error: ${data.error}`;
+                    document.getElementById('queryMessage').className = "alert alert-danger";
+                    document.getElementById('queryMessage').style.display = 'block';
+                    return;
+                }
+                
+                if (data.message) {
+                    // Non-SELECT query results
+                    document.getElementById('queryMessage').textContent = data.message;
+                    document.getElementById('queryMessage').className = "alert alert-success";
+                    document.getElementById('queryMessage').style.display = 'block';
+                    return;
+                }
+                
+                // It's a SELECT query with results
+                document.getElementById('queryMessage').style.display = 'none';
+                
+                if (Array.isArray(data) && data.length === 0) {
+                    document.getElementById('queryMessage').textContent = "Query returned no results";
+                    document.getElementById('queryMessage').className = "alert alert-info";
+                    document.getElementById('queryMessage').style.display = 'block';
+                    return;
+                }
+                
+                // Enable export button
+                document.getElementById('exportCsv').disabled = false;
+                
+                // Store results for export
+                window.queryResults = data;
+                
+                // Create table for results
+                const resultsContainer = document.getElementById('resultsOutput');
+                resultsContainer.innerHTML = '';
+                
+                const table = document.createElement('table');
+                table.classList.add('table', 'table-striped', 'table-bordered');
+                
+                // Create table header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                Object.keys(data[0]).forEach(key => {
+                    const th = document.createElement('th');
+                    th.textContent = key;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Create table body
+                const tbody = document.createElement('tbody');
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    Object.values(row).forEach(value => {
+                        const td = document.createElement('td');
+                        td.textContent = value !== null ? value : 'NULL';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                
+                // Append the table to the results output
+                resultsContainer.appendChild(table);
+            })
+            .catch(error => {
+                console.error("Error executing query:", error);
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('queryMessage').textContent = `Error executing query: ${error.message}`;
+                document.getElementById('queryMessage').className = "alert alert-danger";
+                document.getElementById('queryMessage').style.display = 'block';
+            });
+        });
+        
+        // Export to CSV functionality with error handling
+        document.getElementById('exportCsv').addEventListener('click', function() {
+            try {
+                if (!window.queryResults || window.queryResults.length === 0) return;
+                
+                const results = window.queryResults;
+                const headers = Object.keys(results[0]);
+                
+                let csv = headers.join(',') + '\n';
+                results.forEach(row => {
+                    let rowValues = headers.map(header => {
+                        const val = row[header];
+                        // Handle null values and escape strings with commas
+                        if (val === null) return 'NULL';
+                        if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+                            return `"${val.replace(/"/g, '""')}"`;
+                        }
+                        return val;
+                    });
+                    csv += rowValues.join(',') + '\n';
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                
+                if (typeof saveAs !== 'undefined') {
+                    saveAs(blob, `query-results-${timestamp}.csv`);
+                } else {
+                    // Fallback if FileSaver.js is not available
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `query-results-${timestamp}.csv`;
+                    link.click();
+                }
+            } catch (error) {
+                console.error("Error exporting to CSV:", error);
+                alert(`Failed to export results: ${error.message}`);
+            }
+        });
+        
+        // Load query history on page load
+        loadQueryHistory();
+    });
+</script>
+{% endblock %}

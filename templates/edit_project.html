@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Project{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Edit Project - {{ project.name }}</h2>
+        
+        <!-- Display error or success messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="alert alert-{{ messages[0][0] }}">
+                    {{ messages[0][1] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" id="editProjectForm">
+            <!-- Project Name -->
+            <div class="mb-3">
+                <label for="project_name" class="form-label">Project Name</label>
+                <input type="text" class="form-control" id="project_name" name="project_name" value="{{ project.name }}" required>
+            </div>
+            
+            <!-- Project Description -->
+            <div class="mb-3">
+                <label for="project_description" class="form-label">Project Description</label>
+                <textarea class="form-control" id="project_description" name="project_description" rows="4" required>{{ project.description }}</textarea>
+            </div>
+            
+            <!-- Required Skills -->
+            <div class="mb-3">
+                <label for="required_skills" class="form-label">Required Skills</label>
+                <select class="form-control select2-skills" id="required_skills" name="required_skills" multiple="multiple" required>
+                    <!-- Skills will be dynamically populated -->
+                </select>
+                <small class="form-text text-muted">Type to search or add new skills. Use commas or Enter to separate multiple skills.</small>
+            </div>
+            
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+        
+        <a href="{{ url_for('projects.manage_projects') }}" class="btn btn-secondary mt-3">Back to Project List</a>
+    </div>
+    
+    <!-- Add Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    
+    <!-- Add Select2 JS after jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Common skills to suggest
+            const commonSkills = [
+                'Python', 'JavaScript', 'Java', 'C++', 'C#', 'HTML/CSS', 'React', 
+                'Angular', 'Vue.js', 'Node.js', 'Express', 'Flask', 'Django', 
+                'Spring Boot', 'SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis',
+                'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Git', 'CI/CD',
+                'Machine Learning', 'Data Science', 'AI', 'Deep Learning', 'NLP',
+                'Mobile Development', 'iOS', 'Android', 'Flutter', 'React Native',
+                'UI/UX Design', 'Figma', 'Adobe XD', 'Photoshop', 'Illustrator',
+                'Project Management', 'Agile', 'Scrum', 'Kanban', 'JIRA',
+                'Testing', 'QA', 'Selenium', 'Jest', 'Mocha', 'Cypress',
+                'DevOps', 'SRE', 'System Administration', 'Networking', 'Security'
+            ];
+            
+            // Initialize Select2 
+            $('.select2-skills').select2({
+                tags: true,
+                tokenSeparators: [',', ' '],
+                placeholder: 'Select or type to add skills',
+                data: commonSkills.map(skill => ({ id: skill, text: skill })),
+                createTag: function(params) {
+                    const term = $.trim(params.term);
+                    
+                    if (term === '') {
+                        return null;
+                    }
+                    
+                    return {
+                        id: term,
+                        text: term,
+                        newTag: true
+                    };
+                }
+            });
+            
+            // Pre-select existing skills from the project
+            const projectSkills = '{{ project.required_skills }}'.split(',').map(s => s.trim());
+            $('#required_skills').val(projectSkills).trigger('change');
+            
+            // Handle form submission
+            $('#editProjectForm').on('submit', function() {
+                // Convert selected skills to comma-separated string
+                const skillsArray = $('#required_skills').select2('data').map(item => item.text);
+                const skillsString = skillsArray.join(', ');
+                
+                // Use a hidden input to send as comma-separated string
+                $(this).append(`<input type="hidden" name="required_skills_string" value="${skillsString}">`);
+            });
+        });
+    </script>
+
+    <!-- Edit Project Modal -->
+    <div class="modal fade accessibility-modal" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="editProjectModalLabel">Edit Project</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- ...existing code... -->
+                </div>
+                <div class="modal-footer">
+                    <!-- ...existing code... -->
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

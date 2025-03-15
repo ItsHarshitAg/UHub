@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Skill{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Edit Skill</h2>
+    
+    <form method="POST" action="{{ url_for('skills.edit_skill', skill_id=skill.skill_id) }}" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="skill_name" class="form-label">Skill Name</label>
+            <input type="text" id="skill_name" name="skill_name" class="form-control" value="{{ skill.skill_name }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="proficiency" class="form-label">Proficiency Level</label>
+            <select id="proficiency" name="proficiency" class="form-select" required>
+                <option value="1" {% if skill.proficiency == '1' %}selected{% endif %}>Beginner</option>
+                <option value="2" {% if skill.proficiency == '2' %}selected{% endif %}>Advanced Beginner</option>
+                <option value="3" {% if skill.proficiency == '3' %}selected{% endif %}>Intermediate</option>
+                <option value="4" {% if skill.proficiency == '4' %}selected{% endif %}>Advanced</option>
+                <option value="5" {% if skill.proficiency == '5' %}selected{% endif %}>Expert</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="certificate" class="form-label">Upload Certificate (Optional)</label>
+            <input type="file" id="certificate" name="certificate" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary">Update Skill</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(79, 70, 229, 0.1) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem 0;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 500px;
+        }
+        form {
+            max-height: 750px;
+        }
+        h2 {
+            color: var(--dark);
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            color: var(--dark);
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        .text-center a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .text-center a:hover {
+            text-decoration: underline;
+        }
+        .alert {
+            display: none;
+            margin-top: 15px;
+        }
+        .brand-link {
+            display: block;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .brand-link h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+  
+<div class="container">
+    <a href="/" class="brand-link">
+        <h1>USEHub</h1>
+    </a>
+    <h2>Create Account</h2>
+    
+    <!-- Error pop-up -->
+    <div id="popupMessage" class="alert alert-danger" style="display: none;"></div>
+   
+    <form id="registerForm" method="POST" action="{{ url_for('auth.register_user') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <div class="mb-3">
+            <label for="role" class="form-label">Role</label>
+            <select class="form-select" id="role" name="role">
+                <option value="student" selected>Student</option>
+                <option value="faculty">Faculty</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="bio" class="form-label">Bio</label>
+            <textarea class="form-control" id="bio" name="bio" rows="3"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="profile_picture" class="form-label">Profile Picture</label>
+            <input type="file" class="form-control" id="profile_picture" name="profile_picture">
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Register</button>
+    </form>
+
+    <p class="mt-3 text-center">Already have an account? <a href="{{ url_for('auth.login_user') }}">Login here</a></p>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                
+                // Show loading message
+                const popupMessage = document.getElementById('popupMessage');
+                if (popupMessage) {
+                    popupMessage.textContent = "Processing registration...";
+                    popupMessage.style.display = "block";
+                    popupMessage.classList.remove("alert-danger");
+                    popupMessage.classList.add("alert-info");
+                }
+                
+                fetch('/auth/register', {
+                    method: 'POST',
+                    body: formData,
+                    redirect: 'manual' // Don't follow redirects automatically
+                })
+                .then(response => {
+                    console.log("Registration response status:", response.status);
+                    
+                    // Handle redirects (302, 301 status codes)
+                    if (response.type === 'opaqueredirect' || response.status === 302 || response.status === 301) {
+                        // Success case - server is redirecting us after successful registration
+                        if (popupMessage) {
+                            popupMessage.textContent = "Registration successful! Redirecting to login...";
+                            popupMessage.classList.remove("alert-info", "alert-danger");
+                            popupMessage.classList.add("alert-success");
+                        }
+                        
+                        // Store success message in localStorage to show on login page
+                        localStorage.setItem('registrationSuccess', 'true');
+                        
+                        // Redirect to login page
+                        setTimeout(() => {
+                            window.location.href = '/auth/login';
+                        }, 1500);
+                        return { status: "success" };
+                    }
+                    
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        return response.json();
+                    }
+                    
+                    return { status: "error", message: "Unexpected response from server" };
+                })
+                .then(data => {
+                    console.log("Registration result:", data);
+                    
+                    if (data && data.status === "success") {
+                        // Already handled in the redirect case
+                    } else {
+                        // Error case
+                        if (popupMessage) {
+                            popupMessage.textContent = data.message || "Registration failed";
+                            popupMessage.classList.remove("alert-success", "alert-info");
+                            popupMessage.classList.add("alert-danger");
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Registration error:", error);
+                    if (popupMessage) {
+                        popupMessage.textContent = "Error: " + error.message;
+                        popupMessage.classList.remove("alert-success", "alert-info");
+                        popupMessage.classList.add("alert-danger");
+                    }
+                });
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

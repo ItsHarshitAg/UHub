@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Users</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            width: 100%;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .user-card {
+            background-color: #fafafa;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-card img {
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+        }
+
+        .user-card .user-info {
+            flex-grow: 1;
+        }
+
+        .user-card a {
+            text-decoration: none;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .search-results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .alert.error {
+            background-color: #f44336;
+        }
+
+        .admin-login {
+            text-align: right;
+            margin-right: 20px;
+        }
+
+        .admin-btn {
+            display: inline-block;
+            background-color: #333;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .admin-btn:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Search Users</h1>
+        <div class="admin-login">
+            <a href="#" id="adminLoginBtn" class="admin-btn">Login as Admin</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Search for Users</h2>
+        <input type="text" id="searchQuery" placeholder="Search by name..." oninput="searchUsers()">
+        <div id="alertMessage" class="alert" style="display: none;"></div>
+        <div id="searchResults" class="search-results"></div>
+    </div>
+
+    <script>
+        function searchUsers() {
+            const query = document.getElementById('searchQuery').value;
+            if (query.trim() === '') {
+                document.getElementById('searchResults').style.display = 'none';
+                return;
+            }
+
+            fetch(`/search?query=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    const searchResults = document.getElementById('searchResults');
+                    searchResults.style.display = 'block';
+                    searchResults.innerHTML = '';
+
+                    if (data.length > 0) {
+                        data.forEach(user => {
+                            const userCard = document.createElement('div');
+                            userCard.classList.add('user-card');
+                            userCard.innerHTML = `
+                                <img src="${user.profile_picture || 'default.jpg'}" alt="Profile Picture">
+                                <div class="user-info">
+                                    <a href="/profile/${user.user_id}">${user.name}</a>
+                                    <p>${user.email}</p>
+                                </div>
+                            `;
+                            searchResults.appendChild(userCard);
+                        });
+                    } else {
+                        searchResults.innerHTML = 'No users found.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Error searching for users.', 'error');
+                });
+        }
+
+        function showAlert(message, type) {
+            const alertMessage = document.getElementById('alertMessage');
+            alertMessage.style.display = 'block';
+            alertMessage.textContent = message;
+            alertMessage.className = 'alert ' + (type === 'error' ? 'error' : '');
+        }
+
+        // Add admin login functionality
+        document.getElementById('adminLoginBtn').addEventListener('click', function() {
+            window.location.href = '/auth/login?admin=true';
+        });
+    </script>
+</body>
+</html>

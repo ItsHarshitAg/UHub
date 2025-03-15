@@ -1,0 +1,131 @@
+/* Kanban board styles */
+.kanban-column {
+    height: 600px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.kanban-header {
+    padding: 10px;
+    text-align: center;
+}
+
+.kanban-body {
+    height: calc(100% - 45px);
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #f8f9fa;
+}
+
+.task-card {
+    background-color: white;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: grab;
+}
+
+.task-card:active {
+    cursor: grabbing;
+}
+
+.priority-low { border-left-color: #6c757d; }
+.priority-medium { border-left-color: #0d6efd; }
+.priority-high { border-left-color: #fd7e14; }
+.priority-urgent { border-left-color: #dc3545; }
+
+.chat-container {
+    height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.message-bubble {
+    max-width: 80%;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message-sent {
+    background-color: #dcf8c6;
+    margin-left: auto;
+}
+
+.message-received {
+    background-color: #f1f0f0;
+}
+
+.kanban-body.dragover {
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+/* Comment styles */
+.comment-item {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.file-icon {
+    font-size: 2em;
+    margin-right: 15px;
+}
+
+/* Badge colors for task priority */
+.badge.priority-low {
+    background-color: #6c757d;
+}
+
+.badge.priority-medium {
+    background-color: #0d6efd;
+}
+
+.badge.priority-high {
+    background-color: #fd7e14;
+}
+
+.badge.priority-urgent {
+    background-color: #dc3545;
+}
+
+/* Scrollbar styling for kanban columns */
+.kanban-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.kanban-body::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+/* Inline task form styles */
+#inlineTaskForm {
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--bs-primary);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+#inlineTaskForm .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#inlineTaskForm .card-body {
+    padding: 1.25rem;
+}
