@@ -8,6 +8,9 @@ from app.models.notification import Notification
 from app.models.friendship import FriendRequest
 from sqlalchemy import text
 from datetime import datetime
+import os
+from flask_migrate import upgrade, init, migrate, stamp
+from sqlalchemy.exc import ProgrammingError
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -224,3 +227,34 @@ def get_tables():
         print(f"Error fetching tables: {str(e)}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/run_migrations/<secret_key>')
+def run_migrations(secret_key):
+    """Admin endpoint to manually run database migrations.
+    Secured with a secret key that should match the MIGRATION_SECRET env variable."""
+    
+    # Only allow access with the correct secret key
+    env_secret = os.environ.get('MIGRATION_SECRET', 'migration-secret-key')
+    if secret_key != env_secret:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    # Check if the user is an admin
+    if 'user_id' in session and session.get('role') == 'admin':
+        try:
+            # Check if alembic_version table exists
+            try:
+                db.session.execute(db.text("SELECT * FROM alembic_version"))
+                # If it exists, run migrations
+                upgrade()
+                return jsonify({"message": "Migrations completed successfully"})
+            except ProgrammingError:
+                # Initialize migrations
+                init()
+                migrate(message="Initial migration")
+                stamp()
+                return jsonify({"message": "Migration system initialized"})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Admin access required"}), 403

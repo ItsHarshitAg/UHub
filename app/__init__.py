@@ -101,6 +101,30 @@ def create_app(config_object=None):
             
             # Create all tables if they don't exist
             db.create_all()
+            
+            # Run migrations if migration table exists (meaning Flask-Migrate has been initialized)
+            try:
+                from flask_migrate import upgrade
+                from sqlalchemy.exc import ProgrammingError
+                
+                # Check if alembic_version table exists (indicating migrations are set up)
+                try:
+                    db.session.execute(db.text("SELECT * FROM alembic_version"))
+                    # If the query succeeds, run migrations
+                    app.logger.info("Running database migrations...")
+                    upgrade()
+                    app.logger.info("Database migrations completed successfully.")
+                except ProgrammingError:
+                    # If alembic_version doesn't exist, initialize migrations
+                    app.logger.info("Initializing Flask-Migrate...")
+                    from flask_migrate import init, migrate, stamp
+                    init()
+                    migrate()
+                    stamp()
+                    app.logger.info("Flask-Migrate initialized.")
+            except Exception as e:
+                app.logger.error(f"Error during migration: {str(e)}")
+                
             # Initialize default admin user
             from app.init_admin import create_default_admin
             create_default_admin()
