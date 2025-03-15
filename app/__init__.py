@@ -43,6 +43,14 @@ def create_app(config_object=None):
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
     
+    # Wait for the database to be available if using PostgreSQL
+    # This helps during deployment when the database might not be immediately ready
+    try:
+        from app.utils.database import wait_for_db
+        wait_for_db(app)
+    except Exception as e:
+        app.logger.error(f"Database availability check failed: {str(e)}")
+    
     # Initialize extensions with the app
     db.init_app(app)
     migrate.init_app(app, db)
