@@ -114,6 +114,11 @@ def create_app(config_object=None):
             try:
                 from flask_migrate import upgrade
                 from sqlalchemy.exc import ProgrammingError
+                import os
+                
+                # Check if migrations directory already exists
+                migrations_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations')
+                migrations_exist = os.path.exists(migrations_dir) and os.listdir(migrations_dir)
                 
                 # Check if alembic_version table exists (indicating migrations are set up)
                 try:
@@ -123,17 +128,24 @@ def create_app(config_object=None):
                     upgrade()
                     app.logger.info("Database migrations completed successfully.")
                 except ProgrammingError:
-                    # If alembic_version doesn't exist, initialize migrations
-                    app.logger.info("Initializing Flask-Migrate...")
-                    # Rename the imported functions to avoid name collision with the global migrate variable
-                    from flask_migrate import init as flask_migrate_init
-                    from flask_migrate import migrate as flask_migrate_migrate
-                    from flask_migrate import stamp as flask_migrate_stamp
-                    
-                    flask_migrate_init()
-                    flask_migrate_migrate()
-                    flask_migrate_stamp()
-                    app.logger.info("Flask-Migrate initialized.")
+                    # If alembic_version doesn't exist but migrations directory exists,
+                    # just stamp the current version without initializing
+                    if migrations_exist:
+                        app.logger.info("Migrations directory exists. Stamping current version...")
+                        from flask_migrate import stamp as flask_migrate_stamp
+                        flask_migrate_stamp()
+                        app.logger.info("Database stamped with current version.")
+                    else:
+                        # If migrations directory doesn't exist, initialize migrations
+                        app.logger.info("Initializing Flask-Migrate...")
+                        from flask_migrate import init as flask_migrate_init
+                        from flask_migrate import migrate as flask_migrate_migrate
+                        from flask_migrate import stamp as flask_migrate_stamp
+                        
+                        flask_migrate_init()
+                        flask_migrate_migrate(message="Initial migration")
+                        flask_migrate_stamp()
+                        app.logger.info("Flask-Migrate initialized.")
             except Exception as e:
                 app.logger.error(f"Error during migration: {str(e)}")
                 
