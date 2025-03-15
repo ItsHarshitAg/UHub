@@ -63,12 +63,14 @@ USEHub is a platform for users to share skills, collaborate on projects, and net
 7. Deploy your web service again
 
 8. To initialize your database in production, visit:
-   `https://your-app-url.onrender.com/admin/run_migrations/YOUR_MIGRATION_SECRET`
+   `https://your-app-url.onrender.com/admin/run_migrations/MIGRATION_SECRET`
    Replace YOUR_MIGRATION_SECRET with the value you set earlier
 
 ## Default Admin User
 
-- Email: <admin@gmail.com>
-- Password: admin
 
 For security, change the admin password after first login in production.
+
+### Creating Admin User Manually
+
+If the default admin user isn't created automatically during deployment, you can create it by visiting this URL:

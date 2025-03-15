@@ -258,3 +258,34 @@ def run_migrations(secret_key):
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Admin access required"}), 403
+
+@admin_bp.route('/create_admin/<secret_key>')
+def create_admin_endpoint(secret_key):
+    """Endpoint to manually create the default admin user."""
+    
+    # Verify secret key (same as migration secret or a specific admin creation secret)
+    env_secret = os.environ.get('MIGRATION_SECRET', 'migration-secret-key')
+    if secret_key != env_secret:
+        return jsonify({"error": "Unauthorized - Invalid secret key"}), 401
+    
+    # Call the admin creation function
+    from app.init_admin import create_default_admin
+    success, message = create_default_admin()
+    
+    if success:
+        # Log the successful admin creation
+        new_log = AuditLog(
+            user_id=1,  # Use ID 1 as it's usually the admin
+            action="Created default admin user via API endpoint"
+        )
+        try:
+            db.session.add(new_log)
+            db.session.commit()
+        except Exception as e:
+            # Don't worry if logging fails
+            print(f"Failed to log admin creation: {str(e)}")
+    
+    return jsonify({
+        "success": success,
+        "message": message
+    })
