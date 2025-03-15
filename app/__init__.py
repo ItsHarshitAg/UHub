@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
-import os
+import os  # Ensuring os module is imported here and clearly visible
 import sys
 import logging
 from urllib.parse import urlparse
@@ -13,6 +13,9 @@ migrate = Migrate()
 bcrypt = Bcrypt()
 
 def create_app(config_object=None):
+    # Import os here again just to be sure it's available in this scope
+    import os
+    
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
     
     # Configure the application
